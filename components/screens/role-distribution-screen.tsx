@@ -120,15 +120,23 @@ export function RoleDistributionScreen({ onNavigate }: RoleDistributionScreenPro
   }
 
   const getRoleContent = () => {
+    if (!state.currentSession) {
+      return {
+        title: "",
+        content: "",
+        bgColor: "from-gray-500 to-gray-600",
+      }
+    }
+    
     if (currentPlayer && currentPlayer.role === "imposter") {
       return {
         title: "IMPOSTER",
-        content: state.imposterTipEnabled ? state.currentSession!.imposterTip : "Du bist der Imposter!",
+        content: state.imposterTipEnabled ? state.currentSession.imposterTip : "Du bist der Imposter!",
         bgColor: "from-red-500 to-red-600",
       }
     } else {
       return {
-        title: state.currentSession!.secretWord,
+        title: state.currentSession.secretWord,
         content: "", // Leerer content für Bürger
         bgColor: "from-green-500 to-green-600",
       }

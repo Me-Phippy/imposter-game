@@ -30,6 +30,7 @@ interface GameState {
   selectedPlayers: string[]
   selectedCategories: string[]
   imposterTipEnabled: boolean
+  imposterCount: number
   currentSession: GameSession | null
 }
 
@@ -43,22 +44,17 @@ type GameAction =
   | { type: "SET_SELECTED_PLAYERS"; playerIds: string[] }
   | { type: "SET_SELECTED_CATEGORIES"; categories: string[] }
   | { type: "SET_IMPOSTER_TIP_ENABLED"; enabled: boolean }
+  | { type: "SET_IMPOSTER_COUNT"; count: number }
   | { type: "START_GAME" }
   | { type: "ADD_ASSOCIATION"; playerId: string; word: string }
   | { type: "NEXT_PLAYER" }
   | { type: "ADD_VOTE"; voterId: string; targetId: string }
   | { type: "RESET_GAME" }
   | { type: "IMPORT_WORDS"; wordEntries: WordEntry[] }
+  | { type: "SET_WORD_ENTRIES"; wordEntries: WordEntry[] }
 
 const defaultWordEntries: WordEntry[] = [
-  { word: "Apfel", category: "Obst", imposterTip: "Etwas Essbares" },
-  { word: "Banane", category: "Obst", imposterTip: "Etwas Essbares" },
-  { word: "Hund", category: "Tiere", imposterTip: "Ein Lebewesen" },
-  { word: "Katze", category: "Tiere", imposterTip: "Ein Lebewesen" },
-  { word: "Auto", category: "Fahrzeuge", imposterTip: "Ein Transportmittel" },
-  { word: "Fahrrad", category: "Fahrzeuge", imposterTip: "Ein Transportmittel" },
-  { word: "Pizza", category: "Essen", imposterTip: "Etwas Essbares" },
-  { word: "Burger", category: "Essen", imposterTip: "Etwas Essbares" },
+  // Keine Standard-Wörter mehr - alles kommt aus Firebase
 ]
 
 const initialState: GameState = {
@@ -67,6 +63,7 @@ const initialState: GameState = {
   selectedPlayers: [],
   selectedCategories: [],
   imposterTipEnabled: true,
+  imposterCount: 1,
   currentSession: null,
 }
 
@@ -118,6 +115,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         imposterTipEnabled: action.enabled,
       }
+    case "SET_IMPOSTER_COUNT":
+      return {
+        ...state,
+        imposterCount: action.count,
+      }
     case "START_GAME": {
       const selectedPlayerObjects = state.players.filter((p) => state.selectedPlayers.includes(p.id))
 
@@ -130,11 +132,19 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }
 
       const randomWord = availableWords[Math.floor(Math.random() * availableWords.length)]
-      const imposterIndex = Math.floor(Math.random() * selectedPlayerObjects.length)
+      
+      // Bestimme die Anzahl der Imposter (max. Anzahl der ausgewählten Spieler)
+      const actualImposterCount = Math.min(state.imposterCount, selectedPlayerObjects.length)
+      
+      // Wähle zufällige Imposter aus
+      const imposterIndices = new Set<number>()
+      while (imposterIndices.size < actualImposterCount) {
+        imposterIndices.add(Math.floor(Math.random() * selectedPlayerObjects.length))
+      }
 
       const playersWithRoles = selectedPlayerObjects.map((player, index) => ({
         ...player,
-        role: index === imposterIndex ? ("imposter" as const) : ("citizen" as const),
+        role: imposterIndices.has(index) ? ("imposter" as const) : ("citizen" as const),
       }))
 
       const startPlayerIndex = Math.floor(Math.random() * playersWithRoles.length)
@@ -192,6 +202,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         wordEntries: [...state.wordEntries, ...action.wordEntries],
+      }
+    case "SET_WORD_ENTRIES":
+      return {
+        ...state,
+        wordEntries: action.wordEntries,
       }
     default:
       return state

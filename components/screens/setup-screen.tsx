@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { Slider } from "@/components/ui/slider"
 import { ArrowLeft } from "lucide-react"
 import type { Screen } from "@/app/page"
 import { useGame } from "@/components/game-context"
@@ -19,15 +20,24 @@ export function SetupScreen({ onNavigate }: SetupScreenProps) {
   const categories = [...new Set(state.wordEntries.map((entry) => entry.category))]
 
   const handlePlayerToggle = (playerId: string, checked: boolean) => {
+    let newSelectedPlayers: string[]
+    
     if (checked) {
-      dispatch({
-        type: "SET_SELECTED_PLAYERS",
-        playerIds: [...state.selectedPlayers, playerId],
-      })
+      newSelectedPlayers = [...state.selectedPlayers, playerId]
     } else {
+      newSelectedPlayers = state.selectedPlayers.filter((id) => id !== playerId)
+    }
+
+    dispatch({
+      type: "SET_SELECTED_PLAYERS",
+      playerIds: newSelectedPlayers,
+    })
+
+    // Passe die Imposter-Anzahl an, falls sie größer als die neue Spieleranzahl ist
+    if (state.imposterCount > newSelectedPlayers.length && newSelectedPlayers.length > 0) {
       dispatch({
-        type: "SET_SELECTED_PLAYERS",
-        playerIds: state.selectedPlayers.filter((id) => id !== playerId),
+        type: "SET_IMPOSTER_COUNT",
+        count: newSelectedPlayers.length,
       })
     }
   }
@@ -144,8 +154,39 @@ export function SetupScreen({ onNavigate }: SetupScreenProps) {
                 className="scale-125"
               />
             </div>
+            
+            <div className="p-4 border rounded-lg space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-base font-medium">
+                  Anzahl Imposter
+                </Label>
+                <span className="text-lg font-bold text-red-600 bg-red-50 px-3 py-1 rounded-full">
+                  {state.imposterCount}
+                </span>
+              </div>
+              <div className="space-y-3">
+                <Slider
+                  value={[state.imposterCount]}
+                  onValueChange={(value) => dispatch({ type: "SET_IMPOSTER_COUNT", count: value[0] })}
+                  max={Math.max(1, state.selectedPlayers.length)}
+                  min={1}
+                  step={1}
+                  className="w-full"
+                  disabled={state.selectedPlayers.length === 0}
+                />
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>1</span>
+                  <span className="font-medium">
+                    {state.selectedPlayers.length > 0 
+                      ? `Max: ${state.selectedPlayers.length}` 
+                      : "Spieler auswählen"}
+                  </span>
+                </div>
+              </div>
+            </div>
+            
             <p className="text-sm text-muted-foreground bg-blue-50 p-4 rounded-lg">
-              📱 <strong>Pass-and-Play:</strong> Gebt das Gerät reihum weiter. Ihr entscheidet selbst, wann ihr zur
+              <strong>Pass-and-Play:</strong> Gebt das Gerät reihum weiter. Ihr entscheidet selbst, wann ihr zur
               Diskussion übergeht.
             </p>
           </CardContent>
@@ -157,7 +198,7 @@ export function SetupScreen({ onNavigate }: SetupScreenProps) {
           className="w-full h-16 text-xl font-semibold"
           size="lg"
         >
-          🚀 Spiel starten
+          Spiel starten
         </Button>
       </div>
     </div>

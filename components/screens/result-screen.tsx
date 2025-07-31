@@ -20,7 +20,7 @@ export function ResultScreen({ onNavigate }: ResultScreenProps) {
     return null
   }
 
-  const imposter = state.currentSession.players.find((p) => p.role === "imposter")!
+  const impostors = state.currentSession.players.filter((p) => p.role === "imposter")
   const citizens = state.currentSession.players.filter((p) => p.role === "citizen")
 
   const handleReveal = () => {
@@ -46,14 +46,14 @@ export function ResultScreen({ onNavigate }: ResultScreenProps) {
             </div>
             <h2 className="text-3xl font-bold text-white">Bereit für die Auflösung?</h2>
             <p className="text-gray-300 text-lg leading-relaxed">
-              Klicke auf den Button, um den Imposter aufzudecken und das geheime Wort zu enthüllen.
+              Klicke auf den Button, um {impostors.length > 1 ? 'die Impostors' : 'den Impostor'} aufzudecken und das geheime Wort zu enthüllen.
             </p>
             <Button
               onClick={handleReveal}
               size="lg"
               className="w-full bg-purple-600 hover:bg-purple-700 h-16 text-xl font-semibold"
             >
-              🎭 Imposter aufdecken!
+              🎭 {impostors.length > 1 ? 'Impostors' : 'Impostor'} aufdecken!
             </Button>
           </CardContent>
         </Card>
@@ -89,17 +89,42 @@ export function ResultScreen({ onNavigate }: ResultScreenProps) {
 
         <Card className="bg-red-600/20 border-red-500/50 border-2">
           <CardHeader>
-            <CardTitle className="text-white text-xl">Der Imposter war:</CardTitle>
+            <CardTitle className="text-white text-xl">
+              {impostors.length > 1 ? `Die ${impostors.length} Impostors waren:` : 'Der Impostor war:'}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-red-400 mb-4 p-4 bg-red-500/20 rounded-lg">{imposter.name}</div>
-              <Badge variant="destructive" className="text-lg px-6 py-3 text-base">
-                🎭 IMPOSTER
-              </Badge>
+            <div className="text-center space-y-3">
+              {impostors.map((impostor, index) => (
+                <div key={impostor.id} className="space-y-2">
+                  <div className="text-3xl font-bold text-red-400 p-4 bg-red-500/20 rounded-lg">
+                    {impostor.name}
+                  </div>
+                  <Badge variant="destructive" className="text-lg px-6 py-3 text-base">
+                    🎭 IMPOSTOR {impostors.length > 1 ? `#${index + 1}` : ''}
+                  </Badge>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
+
+        {state.imposterTipEnabled && state.currentSession.imposterTip && (
+          <Card className="bg-orange-600/20 border-orange-500/50 border-2">
+            <CardHeader>
+              <CardTitle className="text-white text-xl">
+                {impostors.length > 1 ? 'Tipp für die Impostors:' : 'Tipp für den Impostor:'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center">
+                <div className="text-lg font-medium text-orange-300 p-4 bg-orange-500/20 rounded-lg">
+                  {state.currentSession.imposterTip}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {state.currentSession.associations.length > 0 && (
           <Card className="bg-white/5 border-white/10">
@@ -116,7 +141,7 @@ export function ResultScreen({ onNavigate }: ResultScreenProps) {
                         <span className="font-medium text-white text-base">{player.name}</span>
                         {player.role === "imposter" ? (
                           <Badge variant="destructive" className="text-sm">
-                            Imposter
+                            Impostor
                           </Badge>
                         ) : (
                           <Badge variant="secondary" className="text-sm">

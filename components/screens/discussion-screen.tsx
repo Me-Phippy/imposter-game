@@ -30,7 +30,7 @@ export function DiscussionScreen({ onNavigate }: DiscussionScreenProps) {
               <MessageSquare className="h-16 w-16 mx-auto text-yellow-500" />
             </div>
             <CardTitle className="text-3xl text-white mb-2">Diskussionsphase</CardTitle>
-            <p className="text-gray-300 text-lg">Diskutiert über die Assoziationen und findet den Imposter!</p>
+            <p className="text-gray-300 text-lg">Diskutiert über die Assoziationen und findet {state.currentSession && state.currentSession.players.filter(p => p.role === "imposter").length > 1 ? 'die Impostors' : 'den Impostor'}!</p>
           </CardHeader>
         </Card>
 
@@ -70,14 +70,14 @@ export function DiscussionScreen({ onNavigate }: DiscussionScreenProps) {
           <CardContent className="pt-6">
             <div className="text-center space-y-4">
               <p className="text-gray-300 text-base">
-                Nehmt euch Zeit für die Diskussion. Wenn ihr bereit seid, deckt den Imposter auf!
+                Nehmt euch Zeit für die Diskussion. Wenn ihr bereit seid, deckt {state.currentSession && state.currentSession.players.filter(p => p.role === "imposter").length > 1 ? 'die Impostors' : 'den Impostor'} auf!
               </p>
               <Button
                 onClick={() => onNavigate("result")}
                 size="lg"
                 className="w-full bg-red-600 hover:bg-red-700 h-16 text-xl font-semibold"
               >
-                <Eye className="h-6 w-6 mr-2" />🎭 Imposter aufdecken
+                <Eye className="h-6 w-6 mr-2" />🎭 {state.currentSession && state.currentSession.players.filter(p => p.role === "imposter").length > 1 ? 'Impostors' : 'Impostor'} aufdecken
               </Button>
             </div>
           </CardContent>

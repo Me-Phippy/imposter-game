@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, BookOpen } from "lucide-react"
+import { Users, BookOpen, Database } from "lucide-react"
 import type { Screen } from "@/app/page"
 
 interface StartMenuScreenProps {
@@ -43,6 +43,15 @@ export function StartMenuScreen({ onNavigate }: StartMenuScreenProps) {
             >
               <BookOpen className="h-6 w-6" />
               <span>Wörter verwalten</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => onNavigate("word-database")}
+              className="h-14 flex items-center justify-center gap-3 text-lg"
+            >
+              <Database className="h-6 w-6" />
+              <span>Wörter-Datenbank</span>
             </Button>
           </div>
 

@@ -6,12 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, Plus, Trash2, Edit, Search, Database, Lock, Wifi, WifiOff, Download, Upload } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, Search, Database, Lock, Cloud, Wifi, WifiOff, Download, Upload, Edit, AlertCircle } from "lucide-react"
 import { PasswordInput } from "@/components/ui/password-input"
 import type { Screen } from "@/app/page"
 import { useGame, type WordEntry } from "@/components/game-context"
-import { useFirebaseWords } from "@/hooks/use-firebase-words"
-import type { FirebaseWord } from "@/lib/firebase"
+import { database, type FirebaseWord } from "@/lib/firebase"
+import { ref, push, onValue, remove, set, off } from "firebase/database"
 
 interface WordManagementScreenProps {
   onNavigate: (screen: Screen) => void
@@ -19,17 +19,21 @@ interface WordManagementScreenProps {
 
 export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) {
   const { dispatch } = useGame()
-  const { words, isLoading, isConnected, addWord, updateWord, deleteWord, importWords } = useFirebaseWords()
+  
+  // Firebase State
+  const [firebaseWords, setFirebaseWords] = useState<FirebaseWord[]>([])
+  const [isConnected, setIsConnected] = useState(true)
+  const [isLoading, setIsLoading] = useState(true)
   
   // Form States
   const [newWord, setNewWord] = useState("")
   const [newCategory, setNewCategory] = useState("")
-  const [newTip, setNewTip] = useState("")
+  const [newHint, setNewHint] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editWord, setEditWord] = useState("")
   const [editCategory, setEditCategory] = useState("")
-  const [editTip, setEditTip] = useState("")
+  const [editHint, setEditHint] = useState("")
   
   // Auth State
   const [showPasswordInput, setShowPasswordInput] = useState(false)
@@ -37,15 +41,43 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
   const [lastSyncMessage, setLastSyncMessage] = useState<string>("")
   const [pendingAction, setPendingAction] = useState<string>("")
 
-  // Synchronize Firebase words with Game Context
+  // Firebase Words laden und live updates
   useEffect(() => {
-    const wordEntries: WordEntry[] = words.map(word => ({
-      word: word.word,
-      category: word.category,
-      imposterTip: word.imposterTip
-    }))
-    dispatch({ type: "SET_WORD_ENTRIES", wordEntries })
-  }, [words, dispatch])
+    setIsLoading(true)
+    const wordsRef = ref(database, 'words')
+    
+    const unsubscribe = onValue(wordsRef, (snapshot) => {
+      const data = snapshot.val()
+      if (data) {
+        const wordsArray: FirebaseWord[] = Object.entries(data).map(([id, word]: [string, any]) => ({
+          id,
+          ...word
+        }))
+        setFirebaseWords(wordsArray)
+        
+        // Game Context synchronisieren
+        const wordEntries: WordEntry[] = wordsArray.map(word => ({
+          word: word.word,
+          category: word.category,
+          imposterTip: word.imposterTip
+        }))
+        dispatch({ type: "SET_WORD_ENTRIES", wordEntries })
+      } else {
+        setFirebaseWords([])
+        dispatch({ type: "SET_WORD_ENTRIES", wordEntries: [] })
+      }
+      setIsConnected(true)
+      setIsLoading(false)
+    }, (error) => {
+      console.error("Firebase connection error:", error)
+      setIsConnected(false)
+      setIsLoading(false)
+    })
+
+    return () => {
+      off(wordsRef, 'value', unsubscribe)
+    }
+  }, [dispatch])
 
   // Helper Functions
   const showSyncMessage = (message: string) => {
@@ -62,43 +94,57 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
     setCanEdit(true)
     setShowPasswordInput(false)
     setPendingAction("")
-    showSyncMessage("Admin-Modus aktiviert - Vollzugriff auf Firebase-Datenbank")
   }
 
-  // CRUD Functions
-  const handleAddWord = async () => {
-    if (!newWord.trim() || !newCategory.trim() || !newTip.trim()) return
+  // Firebase Operations
+  const addWordToFirebase = async () => {
+    if (!canEdit) {
+      requirePassword("Wort hinzufügen")
+      return
+    }
 
-    const success = await addWord({
-      word: newWord.trim(),
-      category: newCategory.trim(),
-      imposterTip: newTip.trim(),
-      dateAdded: new Date().toISOString(),
-      addedBy: "Admin"
-    })
+    if (!newWord.trim() || !newCategory.trim() || !newHint.trim()) return
 
-    if (success) {
+    try {
+      const wordsRef = ref(database, 'words')
+      const newWordData: Omit<FirebaseWord, 'id'> = {
+        word: newWord.trim(),
+        category: newCategory.trim(),
+        imposterTip: newHint.trim(),
+        dateAdded: new Date().toISOString(),
+        addedBy: "Admin"
+      }
+      
+      await push(wordsRef, newWordData)
       showSyncMessage(`Wort "${newWord.trim()}" zur Firebase-Datenbank hinzugefügt`)
+      
+      // Form zurücksetzen
       setNewWord("")
       setNewCategory("")
-      setNewTip("")
-    } else {
-      alert("Fehler beim Hinzufügen des Wortes")
+      setNewHint("")
+    } catch (error) {
+      console.error("Error adding word:", error)
+      alert("Fehler beim Hinzufügen des Wortes zur Datenbank")
     }
   }
 
-  const handleDeleteWord = async (wordId: string, wordText: string) => {
-    if (!confirm(`Möchtest du das Wort "${wordText}" wirklich löschen?`)) return
+  const deleteWordFromFirebase = async (wordId: string, wordText: string) => {
+    if (!canEdit) {
+      requirePassword("Wort löschen")
+      return
+    }
 
-    const success = await deleteWord(wordId)
-    if (success) {
+    try {
+      const wordRef = ref(database, `words/${wordId}`)
+      await remove(wordRef)
       showSyncMessage(`Wort "${wordText}" aus der Firebase-Datenbank entfernt`)
-    } else {
+    } catch (error) {
+      console.error("Error deleting word:", error)
       alert("Fehler beim Löschen des Wortes")
     }
   }
 
-  const handleEditWord = (word: FirebaseWord) => {
+  const startEditWord = (word: FirebaseWord) => {
     if (!canEdit) {
       requirePassword("Wort bearbeiten")
       return
@@ -107,88 +153,110 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
     setEditingId(word.id)
     setEditWord(word.word)
     setEditCategory(word.category)
-    setEditTip(word.imposterTip)
+    setEditHint(word.imposterTip)
   }
 
-  const handleSaveEdit = async () => {
-    if (!editingId || !editWord.trim() || !editCategory.trim() || !editTip.trim()) return
+  const saveEditWord = async () => {
+    if (!editingId || !editWord.trim() || !editCategory.trim() || !editHint.trim()) return
 
-    const originalWord = words.find(w => w.id === editingId)
-    if (!originalWord) return
-
-    const success = await updateWord(editingId, {
-      word: editWord.trim(),
-      category: editCategory.trim(),
-      imposterTip: editTip.trim(),
-      dateAdded: originalWord.dateAdded,
-      addedBy: originalWord.addedBy || "Admin"
-    })
-
-    if (success) {
+    try {
+      const wordRef = ref(database, `words/${editingId}`)
+      const updatedWord = {
+        word: editWord.trim(),
+        category: editCategory.trim(),
+        imposterTip: editHint.trim(),
+        dateAdded: firebaseWords.find(w => w.id === editingId)?.dateAdded || new Date().toISOString(),
+        addedBy: firebaseWords.find(w => w.id === editingId)?.addedBy || "Admin"
+      }
+      
+      await set(wordRef, updatedWord)
       showSyncMessage(`Wort "${editWord.trim()}" in der Firebase-Datenbank aktualisiert`)
+      
       setEditingId(null)
       setEditWord("")
       setEditCategory("")
-      setEditTip("")
-    } else {
+      setEditHint("")
+    } catch (error) {
+      console.error("Error updating word:", error)
       alert("Fehler beim Aktualisieren des Wortes")
     }
   }
 
-  const handleCancelEdit = () => {
+  const cancelEdit = () => {
     setEditingId(null)
     setEditWord("")
     setEditCategory("")
-    setEditTip("")
+    setEditHint("")
   }
 
-  const handleExport = () => {
-    const dataStr = JSON.stringify(words, null, 2)
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr)
-    
-    const exportFileDefaultName = `firebase-words-${new Date().toISOString().split('T')[0]}.json`
-    
-    const linkElement = document.createElement('a')
-    linkElement.setAttribute('href', dataUri)
-    linkElement.setAttribute('download', exportFileDefaultName)
-    linkElement.click()
-  }
+  const importWordsToFirebase = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!canEdit) {
+      requirePassword("Wörter importieren")
+      return
+    }
 
-  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
 
-    try {
-      const text = await file.text()
-      const importedWords = JSON.parse(text)
-      
-      if (!Array.isArray(importedWords)) {
-        alert("Ungültiges Dateiformat")
-        return
-      }
+    const reader = new FileReader()
+    reader.onload = async (e) => {
+      try {
+        const importedWords = JSON.parse(e.target?.result as string) as WordEntry[]
+        if (!Array.isArray(importedWords)) {
+          alert("Ungültiges Dateiformat")
+          return
+        }
 
-      const success = await importWords(importedWords)
-      if (success) {
-        showSyncMessage(`${importedWords.length} Wörter in die Firebase-Datenbank importiert`)
-      } else {
-        alert("Fehler beim Importieren der Wörter")
+        const wordsRef = ref(database, 'words')
+        let importCount = 0
+
+        for (const word of importedWords) {
+          const newWordData: Omit<FirebaseWord, 'id'> = {
+            word: word.word,
+            category: word.category,
+            imposterTip: word.imposterTip,
+            dateAdded: new Date().toISOString(),
+            addedBy: "Import"
+          }
+          await push(wordsRef, newWordData)
+          importCount++
+        }
+
+        showSyncMessage(`${importCount} Wörter erfolgreich in die Firebase-Datenbank importiert`)
+      } catch (error) {
+        console.error("Import error:", error)
+        alert("Fehler beim Importieren der Datei")
       }
-    } catch (error) {
-      alert("Fehler beim Lesen der Datei")
     }
+    reader.readAsText(file)
     
     // Reset file input
     event.target.value = ""
   }
 
+  const exportWords = () => {
+    const dataStr = JSON.stringify(firebaseWords.map(w => ({
+      word: w.word,
+      category: w.category,
+      imposterTip: w.imposterTip
+    })), null, 2)
+    const dataBlob = new Blob([dataStr], { type: "application/json" })
+    const url = URL.createObjectURL(dataBlob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `imposter-words-${new Date().toISOString().split('T')[0]}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   // Filter words
-  const filteredEntries = words.filter(word =>
+  const filteredWords = firebaseWords.filter(word =>
     word.word.toLowerCase().includes(searchTerm.toLowerCase()) ||
     word.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
     word.imposterTip.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const categories = [...new Set(words.map(word => word.category))]
+  const categories = [...new Set(firebaseWords.map(word => word.category))]
 
   return (
     <div className="min-h-screen p-4">
@@ -197,7 +265,7 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
           <Button variant="ghost" size="icon" onClick={() => onNavigate("start-menu")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-2xl font-bold text-white">Wörter durchstöbern</h1>
+          <h1 className="text-2xl font-bold text-white">Wörter verwalten</h1>
         </div>
 
         {/* Firebase Connection Status */}
@@ -213,7 +281,7 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
               )}
               <div className="text-sm">
                 <p className={`font-medium ${isConnected ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'}`}>
-                  {isLoading ? 'Verbinde mit Firebase...' : isConnected ? 'Firebase-Datenbank verbunden' : 'Firebase-Verbindung unterbrochen'}
+                  {isLoading ? '🔄 Verbinde mit Firebase...' : isConnected ? '🔥 Firebase-Datenbank verbunden' : '❌ Firebase-Verbindung unterbrochen'}
                 </p>
                 <p className={`${isConnected ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
                   {isConnected 
@@ -225,39 +293,39 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
             </div>
             {lastSyncMessage && (
               <div className="mt-2 p-2 bg-blue-100 dark:bg-blue-900/50 rounded text-xs text-blue-800 dark:text-blue-200">
-                {lastSyncMessage}
+                ✅ {lastSyncMessage}
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Password Protection - Only shown for CRUD operations */}
+        {/* Password Protection */}
         {!canEdit && (
-          <Card className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/50">
+          <Card className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/50">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
-                <Database className="h-5 w-5" />
-                Firebase-Datenbank (Nur-Lesen-Modus)
+              <CardTitle className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
+                <Lock className="h-5 w-5" />
+                🔐 Firebase-Datenbank schreibgeschützt
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-blue-700 dark:text-blue-300 text-sm mb-4">
-                Du kannst alle Wörter einsehen und durchsuchen. Für das Bearbeiten, Hinzufügen oder Löschen von Wörtern
-                benötigst du das Admin-Passwort.
+              <p className="text-amber-700 dark:text-amber-300 text-sm mb-4">
+                Die Firebase-Datenbank ist schreibgeschützt. Um Wörter hinzuzufügen, zu bearbeiten oder zu löschen,
+                authentifizieren Sie sich mit dem Admin-Passwort.
               </p>
               {!showPasswordInput ? (
                 <Button 
                   variant="outline" 
                   onClick={() => setShowPasswordInput(true)}
-                  className="w-full h-12 border-blue-300 text-blue-800 hover:bg-blue-100 dark:border-blue-700 dark:text-blue-200 dark:hover:bg-blue-900/50"
+                  className="w-full h-12 border-amber-300 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/50"
                 >
                   <Lock className="h-4 w-4 mr-2" />
-                  Admin-Modus aktivieren (zum Bearbeiten)
+                  Admin-Passwort eingeben
                 </Button>
               ) : (
                 <PasswordInput
                   onCorrectPassword={handlePasswordSuccess}
-                  title={pendingAction ? `Authentifizierung für: ${pendingAction}` : "Admin-Modus aktivieren"}
+                  title={pendingAction ? `Authentifizierung für: ${pendingAction}` : "Firebase-Datenbank entsperren"}
                   placeholder="Admin-Passwort eingeben"
                 />
               )}
@@ -269,61 +337,43 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
         {canEdit && (
           <Card className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/50">
             <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <p className="text-green-700 dark:text-green-300 text-sm font-medium">
-                    Admin-Modus aktiv - Vollzugriff auf Firebase-Datenbank
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCanEdit(false)}
-                  className="text-green-700 border-green-300 hover:bg-green-100 dark:text-green-300 dark:border-green-700 dark:hover:bg-green-900/50"
-                >
-                  Beenden
-                </Button>
+              <div className="flex items-center gap-3">
+                <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
+                <p className="text-green-700 dark:text-green-300 text-sm font-medium">
+                  ✅ Admin-Modus aktiv - Alle Änderungen werden in Firebase gespeichert
+                </p>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Import/Export - Export available for everyone, Import only for admins */}
-        <div className="flex gap-2">
-          <Button onClick={handleExport} variant="outline" className="flex-1 bg-transparent">
-            <Download className="h-4 w-4 mr-2" />
-            Exportieren
-          </Button>
-          {canEdit ? (
-            <div className="flex-1">
-              <input 
-                type="file" 
-                accept=".json" 
-                onChange={handleImport} 
-                className="hidden" 
-                id="import-file" 
-              />
-              <Button asChild variant="outline" className="w-full bg-transparent">
-                <label htmlFor="import-file" className="cursor-pointer">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Importieren
-                </label>
-              </Button>
-            </div>
-          ) : (
-            <Button 
-              onClick={() => requirePassword("Wörter importieren")} 
-              variant="outline" 
-              className="flex-1 bg-transparent"
-            >
-              <Lock className="h-4 w-4 mr-2" />
-              Importieren (Admin)
-            </Button>
-          )}
-        </div>
-
+        {/* Add/Import Controls */}
         {canEdit && (
+          <>
+            {/* Import/Export */}
+            <div className="flex gap-2">
+              <Button onClick={exportWords} variant="outline" className="flex-1 bg-transparent">
+                <Download className="h-4 w-4 mr-2" />
+                Exportieren
+              </Button>
+              <div className="flex-1">
+                <input 
+                  type="file" 
+                  accept=".json" 
+                  onChange={importWordsToFirebase} 
+                  className="hidden" 
+                  id="import-file" 
+                />
+                <Button asChild variant="outline" className="w-full bg-transparent">
+                  <label htmlFor="import-file" className="cursor-pointer">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Importieren
+                  </label>
+                </Button>
+              </div>
+            </div>
+
+            {/* Add New Word */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -357,18 +407,18 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
                   </datalist>
                 </div>
                 <div>
-                  <Label htmlFor="new-tip">Imposter-Tipp</Label>
+                  <Label htmlFor="new-hint">Imposter-Tipp</Label>
                   <Textarea
-                    id="new-tip"
-                    value={newTip}
-                    onChange={(e) => setNewTip(e.target.value)}
+                    id="new-hint"
+                    value={newHint}
+                    onChange={(e) => setNewHint(e.target.value)}
                     placeholder="z.B. Etwas Essbares, meist rot oder grün"
                     rows={2}
                   />
                 </div>
                 <Button
-                  onClick={handleAddWord}
-                  disabled={!newWord.trim() || !newCategory.trim() || !newTip.trim() || !isConnected}
+                  onClick={addWordToFirebase}
+                  disabled={!newWord.trim() || !newCategory.trim() || !newHint.trim() || !isConnected}
                   className="w-full"
                 >
                   <Plus className="h-4 w-4 mr-2" />
@@ -376,9 +426,10 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
                 </Button>
               </CardContent>
             </Card>
+          </>
         )}
 
-        {/* Search - Available for everyone */}
+        {/* Search */}
         <Card>
           <CardHeader>
             <CardTitle>Wörter durchsuchen</CardTitle>
@@ -393,21 +444,16 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
                 className="pl-10"
               />
             </div>
-            {searchTerm && (
-              <p className="text-xs text-muted-foreground mt-2">
-                {filteredEntries.length} von {words.length} Wörtern gefunden
-              </p>
-            )}
           </CardContent>
         </Card>
 
-        {/* Words List - Always accessible for reading */}
+        {/* Words List */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>
-                Firebase-Wörter ({filteredEntries.length} von {words.length})
-                {!canEdit && <span className="text-xs ml-2 text-muted-foreground">(Nur-Lesen)</span>}
+                Firebase-Wörter ({filteredWords.length} von {firebaseWords.length})
+                {!canEdit && <Lock className="inline h-4 w-4 ml-2 text-muted-foreground" />}
               </span>
               <Database className="h-5 w-5 text-muted-foreground" />
             </CardTitle>
@@ -415,13 +461,13 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
           <CardContent>
             {isLoading ? (
               <p className="text-center text-muted-foreground py-4">Lade Wörter aus Firebase...</p>
-            ) : filteredEntries.length === 0 ? (
+            ) : filteredWords.length === 0 ? (
               <p className="text-center text-muted-foreground py-4">
                 {searchTerm ? "Keine Wörter gefunden" : "Noch keine Wörter in der Firebase-Datenbank"}
               </p>
             ) : (
               <div className="space-y-3">
-                {filteredEntries.map((word) => (
+                {filteredWords.map((word) => (
                   <div key={word.id} className="border rounded-lg p-3">
                     {editingId === word.id ? (
                       <div className="space-y-3">
@@ -436,16 +482,16 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
                           placeholder="Kategorie"
                         />
                         <Textarea
-                          value={editTip}
-                          onChange={(e) => setEditTip(e.target.value)}
+                          value={editHint}
+                          onChange={(e) => setEditHint(e.target.value)}
                           placeholder="Imposter-Tipp"
                           rows={2}
                         />
                         <div className="flex gap-2">
-                          <Button size="sm" onClick={handleSaveEdit}>
+                          <Button size="sm" onClick={saveEditWord}>
                             Speichern
                           </Button>
-                          <Button size="sm" variant="outline" onClick={handleCancelEdit}>
+                          <Button size="sm" variant="outline" onClick={cancelEdit}>
                             Abbrechen
                           </Button>
                         </div>
@@ -467,7 +513,7 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
                               <Button
                                 size="icon"
                                 variant="ghost"
-                                onClick={() => handleEditWord(word)}
+                                onClick={() => startEditWord(word)}
                                 className="h-8 w-8"
                               >
                                 <Edit className="h-4 w-4" />
@@ -475,8 +521,8 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
                               <Button
                                 size="icon"
                                 variant="ghost"
-                                onClick={() => handleDeleteWord(word.id, word.word)}
-                                className="h-8 w-8 text-red-600 hover:text-red-700"
+                                onClick={() => deleteWordFromFirebase(word.id, word.word)}
+                                className="h-8 w-8"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -484,8 +530,8 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
                           )}
                           {!canEdit && (
                             <div className="flex items-center gap-2 ml-4">
-                              <Database className="h-4 w-4 text-blue-500" />
-                              <span className="text-xs text-blue-600">Nur-Lesen</span>
+                              <Lock className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-xs text-muted-foreground">Schreibgeschützt</span>
                             </div>
                           )}
                         </div>
@@ -498,26 +544,23 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
           </CardContent>
         </Card>
 
-        {/* Statistics - Available for everyone */}
+        {/* Statistics */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Database className="h-5 w-5" />
-              Firebase-Statistiken
-            </CardTitle>
+            <CardTitle>Statistiken</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-3 gap-4">
               <div className="text-center">
-                <div className="text-xl font-bold text-blue-600">{words.length}</div>
+                <div className="text-xl font-bold">{firebaseWords.length}</div>
                 <div className="text-xs text-muted-foreground">Firebase</div>
               </div>
               <div className="text-center">
-                <div className="text-xl font-bold text-green-600">{categories.length}</div>
+                <div className="text-xl font-bold">{categories.length}</div>
                 <div className="text-xs text-muted-foreground">Kategorien</div>
               </div>
               <div className="text-center">
-                <div className="text-xl font-bold text-purple-600">{filteredEntries.length}</div>
+                <div className="text-xl font-bold">{filteredWords.length}</div>
                 <div className="text-xs text-muted-foreground">Gefiltert</div>
               </div>
             </div>
