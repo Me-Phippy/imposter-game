@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { createContext, useContext, useReducer, useEffect, type ReactNode } from "react"
+import { useFirebaseWords } from "@/hooks/use-firebase-words"
 
 export interface Player {
   id: string
@@ -263,6 +264,9 @@ const GameContext = createContext<{
 
 export function GameProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(gameReducer, initialState)
+  
+  // ✅ Firebase-Wörter direkt im GameProvider laden (ohne Authentifizierung)
+  const { words: firebaseWords } = useFirebaseWords()
 
   // Lade Spieler aus localStorage beim ersten Rendern
   useEffect(() => {
@@ -271,6 +275,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
       dispatch({ type: "LOAD_PLAYERS", players: savedPlayers })
     }
   }, [])
+
+  // ✅ Synchronisiere Firebase-Wörter automatisch mit Game State
+  useEffect(() => {
+    if (firebaseWords.length > 0) {
+      const wordEntries: WordEntry[] = firebaseWords.map(word => ({
+        word: word.word,
+        category: word.category,
+        imposterTip: word.imposterTip
+      }))
+      dispatch({ type: "SET_WORD_ENTRIES", wordEntries })
+    }
+  }, [firebaseWords]) // ← Läuft automatisch wenn Firebase-Wörter geladen werden
 
   return <GameContext.Provider value={{ state, dispatch }}>{children}</GameContext.Provider>
 }
