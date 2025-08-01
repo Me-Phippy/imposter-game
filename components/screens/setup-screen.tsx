@@ -44,14 +44,17 @@ export function SetupScreen({ onNavigate }: SetupScreenProps) {
 
   const handleCategoryToggle = (category: string, checked: boolean) => {
     if (checked) {
+      // Füge Kategorie hinzu
       dispatch({
         type: "SET_SELECTED_CATEGORIES",
         categories: [...state.selectedCategories, category],
       })
     } else {
+      // Entferne Kategorie
+      const newCategories = state.selectedCategories.filter((c) => c !== category)
       dispatch({
         type: "SET_SELECTED_CATEGORIES",
-        categories: state.selectedCategories.filter((c) => c !== category),
+        categories: newCategories,
       })
     }
   }
@@ -116,23 +119,55 @@ export function SetupScreen({ onNavigate }: SetupScreenProps) {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {categories.map((category) => (
-                <div key={category} className="flex items-center space-x-3 p-3 border rounded-lg">
-                  <Checkbox
-                    id={category}
-                    checked={state.selectedCategories.length === 0 || state.selectedCategories.includes(category)}
-                    onCheckedChange={(checked) => handleCategoryToggle(category, checked as boolean)}
-                    className="h-5 w-5"
-                  />
-                  <Label htmlFor={category} className="text-base font-medium flex-1 cursor-pointer">
-                    {category}
-                  </Label>
-                </div>
-              ))}
+              <div className="flex items-center space-x-3 p-3 border-2 border-blue-200 rounded-lg bg-blue-50">
+                <Checkbox
+                  id="all-categories"
+                  checked={state.selectedCategories.length === 0}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      // Alle Kategorien verwenden (leere Liste bedeutet alle)
+                      dispatch({
+                        type: "SET_SELECTED_CATEGORIES",
+                        categories: [],
+                      })
+                    } else {
+                      // Alle Kategorien einzeln aktivieren für individuelle Auswahl
+                      dispatch({
+                        type: "SET_SELECTED_CATEGORIES",
+                        categories: [...categories],
+                      })
+                    }
+                  }}
+                  className="h-5 w-5"
+                />
+                <Label htmlFor="all-categories" className="text-base font-medium flex-1 cursor-pointer text-blue-800">
+                  Alle Kategorien verwenden
+                </Label>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                {categories.map((category) => (
+                  <div key={category} className="flex items-center space-x-2 p-2 border rounded-lg">
+                    <Checkbox
+                      id={category}
+                      checked={state.selectedCategories.length === 0 || state.selectedCategories.includes(category)}
+                      disabled={state.selectedCategories.length === 0}
+                      onCheckedChange={(checked) => {
+                        handleCategoryToggle(category, checked as boolean)
+                      }}
+                      className="h-4 w-4"
+                    />
+                    <Label htmlFor={category} className="text-sm font-medium flex-1 cursor-pointer leading-tight">
+                      {category}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+              
               <p className="text-sm text-muted-foreground text-center pt-2">
                 {state.selectedCategories.length === 0
-                  ? "Alle Kategorien"
-                  : `${state.selectedCategories.length} Kategorien ausgewählt`}
+                  ? "Alle Kategorien werden verwendet"
+                  : `${state.selectedCategories.length} von ${categories.length} Kategorien ausgewählt`}
               </p>
             </div>
           </CardContent>

@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, Plus, Trash2, Edit, Search, Database, Lock, Wifi, WifiOff, Download, Upload } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, Edit, Search, Database, Lock, Wifi, WifiOff, Download, Upload, AlertTriangle, Copy } from "lucide-react"
 import { PasswordInput } from "@/components/ui/password-input"
 import type { Screen } from "@/app/page"
 import { useGame, type WordEntry } from "@/components/game-context"
@@ -36,6 +36,58 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
   const [canEdit, setCanEdit] = useState(false)
   const [lastSyncMessage, setLastSyncMessage] = useState<string>("")
   const [pendingAction, setPendingAction] = useState<string>("")
+  const [showDuplicates, setShowDuplicates] = useState(false)
+
+  // Duplicate Detection
+  const duplicates = useMemo(() => {
+    if (!canEdit) return []
+    
+    const wordMap = new Map<string, FirebaseWord[]>()
+    
+    // Gruppiere Wörter nach lowercase word
+    words.forEach(word => {
+      const key = word.word.toLowerCase().trim()
+      if (!wordMap.has(key)) {
+        wordMap.set(key, [])
+      }
+      wordMap.get(key)!.push(word)
+    })
+    
+    // Finde alle Duplikate (Gruppen mit mehr als einem Wort)
+    const duplicateWords: FirebaseWord[] = []
+    wordMap.forEach(group => {
+      if (group.length > 1) {
+        duplicateWords.push(...group)
+      }
+    })
+    
+    return duplicateWords
+  }, [words, canEdit])
+
+  const duplicateGroups = useMemo(() => {
+    if (!canEdit) return []
+    
+    const wordMap = new Map<string, FirebaseWord[]>()
+    
+    // Gruppiere Wörter nach lowercase word
+    words.forEach(word => {
+      const key = word.word.toLowerCase().trim()
+      if (!wordMap.has(key)) {
+        wordMap.set(key, [])
+      }
+      wordMap.get(key)!.push(word)
+    })
+    
+    // Finde alle Duplikate-Gruppen
+    const groups: FirebaseWord[][] = []
+    wordMap.forEach(group => {
+      if (group.length > 1) {
+        groups.push(group)
+      }
+    })
+    
+    return groups
+  }, [words, canEdit])
 
   // Synchronize Firebase words with Game Context
   useEffect(() => {
@@ -48,10 +100,11 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
   }, [words, dispatch])
 
   // Helper Functions
-  const showSyncMessage = (message: string) => {
+  const showSyncMessage = useCallback((message: string) => {
     setLastSyncMessage(message)
-    setTimeout(() => setLastSyncMessage(""), 3000)
-  }
+    const timer = setTimeout(() => setLastSyncMessage(""), 3000)
+    return () => clearTimeout(timer)
+  }, [])
 
   const requirePassword = (action: string) => {
     setPendingAction(action)
@@ -63,6 +116,14 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
     setShowPasswordInput(false)
     setPendingAction("")
     showSyncMessage("Admin-Modus aktiviert - Vollzugriff auf Firebase-Datenbank")
+    
+    // Check for duplicates after a short delay to allow state to settle
+    setTimeout(() => {
+      if (duplicates.length > 0) {
+        setShowDuplicates(true)
+        showSyncMessage(`⚠️ ${duplicates.length} Duplikate in der Datenbank gefunden!`)
+      }
+    }, 500)
   }
 
   // CRUD Functions
@@ -140,6 +201,55 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
     setEditWord("")
     setEditCategory("")
     setEditTip("")
+  }
+
+  const handleDeleteAllDuplicates = async () => {
+    if (duplicateGroups.length === 0) return
+
+    const totalDuplicates = duplicates.length
+    const groupsCount = duplicateGroups.length
+
+    const confirmMessage = `Möchtest du alle älteren Duplikate löschen?\n\n` +
+      `• ${groupsCount} Duplikat-Gruppen gefunden\n` +
+      `• ${totalDuplicates} Wörter insgesamt\n` +
+      `• Die neueste Version jeder Gruppe wird behalten\n` +
+      `• ${totalDuplicates - groupsCount} Wörter werden gelöscht`
+
+    if (!confirm(confirmMessage)) return
+
+    let deletedCount = 0
+    let errorCount = 0
+
+    // Durchlaufe alle Duplikat-Gruppen
+    for (const group of duplicateGroups) {
+      // Sortiere nach Datum (neueste zuerst)
+      const sortedGroup = [...group].sort((a, b) => 
+        new Date(b.dateAdded).getTime() - new Date(a.dateAdded).getTime()
+      )
+      
+      // Behalte das neueste (erstes Element), lösche den Rest
+      const toDelete = sortedGroup.slice(1)
+      
+      for (const word of toDelete) {
+        try {
+          const success = await deleteWord(word.id)
+          if (success) {
+            deletedCount++
+          } else {
+            errorCount++
+          }
+        } catch (error) {
+          console.error(`Fehler beim Löschen von ${word.word}:`, error)
+          errorCount++
+        }
+      }
+    }
+
+    if (errorCount === 0) {
+      showSyncMessage(`✅ ${deletedCount} Duplikate erfolgreich gelöscht! ${groupsCount} eindeutige Wörter behalten.`)
+    } else {
+      showSyncMessage(`⚠️ ${deletedCount} Duplikate gelöscht, ${errorCount} Fehler aufgetreten.`)
+    }
   }
 
   const handleExport = () => {
@@ -286,6 +396,120 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
                 </Button>
               </div>
             </CardContent>
+          </Card>
+        )}
+
+        {/* Duplicate Detection */}
+        {canEdit && duplicateGroups.length > 0 && (
+          <Card className="border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-orange-800 dark:text-orange-200">
+                <AlertTriangle className="h-5 w-5" />
+                Duplikate gefunden ({duplicates.length} Wörter)
+                <div className="ml-auto flex gap-2">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleDeleteAllDuplicates}
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Alle älteren löschen
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowDuplicates(!showDuplicates)}
+                    className="text-orange-700 hover:bg-orange-100 dark:text-orange-300 dark:hover:bg-orange-900/50"
+                  >
+                    {showDuplicates ? 'Ausblenden' : 'Anzeigen'}
+                  </Button>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            {showDuplicates && (
+              <CardContent>
+                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/50 rounded-lg border border-blue-200 dark:border-blue-700">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                      Auto-Bereinigung verfügbar
+                    </span>
+                  </div>
+                  <p className="text-xs text-blue-700 dark:text-blue-300 mb-3">
+                    Der "Alle älteren löschen" Button behält automatisch die <strong>neueste Version</strong> jedes Duplikats 
+                    und löscht alle älteren Versionen basierend auf dem Hinzufügungsdatum.
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-green-100 dark:bg-green-950/50 p-2 rounded">
+                      <strong className="text-green-800 dark:text-green-200">Behalten:</strong>
+                      <br />✓ {duplicateGroups.length} neueste Wörter
+                    </div>
+                    <div className="bg-red-100 dark:bg-red-950/50 p-2 rounded">
+                      <strong className="text-red-800 dark:text-red-200">Löschen:</strong>
+                      <br />✗ {duplicates.length - duplicateGroups.length} ältere Versionen
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  {duplicateGroups.map((group, groupIndex) => {
+                    // Sortiere Gruppe nach Datum (neueste zuerst) für Anzeige
+                    const sortedGroup = [...group].sort((a, b) => 
+                      new Date(b.dateAdded).getTime() - new Date(a.dateAdded).getTime()
+                    )
+                    return (
+                      <div key={groupIndex} className="p-3 bg-white dark:bg-gray-800 rounded-lg border border-orange-200 dark:border-orange-700">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Copy className="h-4 w-4 text-orange-600" />
+                          <span className="font-medium text-orange-800 dark:text-orange-200">
+                            "{group[0].word}" ({group.length} Duplikate)
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          {sortedGroup.map((word, index) => (
+                            <div key={word.id} className={`flex items-center justify-between p-2 rounded border ${
+                              index === 0 
+                                ? 'bg-green-50 dark:bg-green-950/25 border-green-200 dark:border-green-700' 
+                                : 'bg-red-50 dark:bg-red-950/25 border-red-200 dark:border-red-700'
+                            }`}>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm">
+                                    <span className="font-medium">{word.word}</span> 
+                                    <span className="text-muted-foreground"> • {word.category}</span>
+                                  </p>
+                                  {index === 0 && (
+                                    <span className="text-xs bg-green-600 text-white px-2 py-1 rounded">NEUESTE</span>
+                                  )}
+                                  {index > 0 && (
+                                    <span className="text-xs bg-red-600 text-white px-2 py-1 rounded">ÄLTER</span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-muted-foreground">{word.imposterTip}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  ID: {word.id} • {new Date(word.dateAdded).toLocaleDateString('de-DE')} {new Date(word.dateAdded).toLocaleTimeString('de-DE')}
+                                </p>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDeleteWord(word.id, word.word)}
+                                className="text-red-600 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-700 dark:hover:bg-red-950/50"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-3 text-xs text-orange-700 dark:text-orange-300 bg-orange-100 dark:bg-orange-900/50 p-2 rounded">
+                          💡 Die Auto-Bereinigung behält automatisch die grün markierte (neueste) Version
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            )}
           </Card>
         )}
 

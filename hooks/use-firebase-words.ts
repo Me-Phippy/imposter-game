@@ -34,9 +34,9 @@ export function useFirebaseWords() {
     )
 
     return () => {
-      off(wordsRef, 'value', unsubscribe)
+      unsubscribe()
     }
-  }, [])
+  }, []) // Empty dependency array prevents infinite loop
 
   const addWord = async (wordData: Omit<FirebaseWord, 'id'>) => {
     try {
