@@ -65,7 +65,7 @@ export function AssociationScreen({ onNavigate }: AssociationScreenProps) {
                 placeholder="Gib ein assoziiertes Wort ein..."
                 onKeyPress={(e) => e.key === "Enter" && handleSubmitAssociation()}
                 autoFocus
-                className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 h-14 text-lg"
+                className="bg-white/10 border-white/20 text-black placeholder:text-gray-400 h-14 text-lg"
               />
             </div>
 
