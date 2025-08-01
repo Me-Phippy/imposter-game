@@ -45,14 +45,6 @@ export function StartMenuScreen({ onNavigate }: StartMenuScreenProps) {
               <span>Wörter verwalten</span>
             </Button>
 
-            <Button
-              variant="outline"
-              onClick={() => onNavigate("word-database")}
-              className="h-14 flex items-center justify-center gap-3 text-lg"
-            >
-              <Database className="h-6 w-6" />
-              <span>Wörter-Datenbank</span>
-            </Button>
           </div>
 
           <div className="pt-6 border-t">

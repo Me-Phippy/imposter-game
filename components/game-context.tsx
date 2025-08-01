@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { createContext, useContext, useReducer, type ReactNode } from "react"
+import { createContext, useContext, useReducer, useEffect, type ReactNode } from "react"
 
 export interface Player {
   id: string
@@ -38,6 +38,7 @@ type GameAction =
   | { type: "ADD_PLAYER"; player: Player }
   | { type: "REMOVE_PLAYER"; playerId: string }
   | { type: "UPDATE_PLAYER"; player: Player }
+  | { type: "LOAD_PLAYERS"; players: Player[] }
   | { type: "ADD_WORD_ENTRY"; wordEntry: WordEntry }
   | { type: "REMOVE_WORD_ENTRY"; index: number }
   | { type: "UPDATE_WORD_ENTRY"; index: number; wordEntry: WordEntry }
@@ -57,6 +58,28 @@ const defaultWordEntries: WordEntry[] = [
   // Keine Standard-Wörter mehr - alles kommt aus Firebase
 ]
 
+// Funktion zum Laden der Spieler aus localStorage
+function loadPlayersFromStorage(): Player[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const saved = localStorage.getItem('imposter-game-players')
+    return saved ? JSON.parse(saved) : []
+  } catch (error) {
+    console.error('Fehler beim Laden der Spieler aus localStorage:', error)
+    return []
+  }
+}
+
+// Funktion zum Speichern der Spieler in localStorage
+function savePlayersToStorage(players: Player[]): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem('imposter-game-players', JSON.stringify(players))
+  } catch (error) {
+    console.error('Fehler beim Speichern der Spieler in localStorage:', error)
+  }
+}
+
 const initialState: GameState = {
   players: [],
   wordEntries: defaultWordEntries,
@@ -68,22 +91,35 @@ const initialState: GameState = {
 }
 
 function gameReducer(state: GameState, action: GameAction): GameState {
+  let newState: GameState
+  
   switch (action.type) {
     case "ADD_PLAYER":
-      return {
+      newState = {
         ...state,
         players: [...state.players, action.player],
       }
+      savePlayersToStorage(newState.players)
+      return newState
     case "REMOVE_PLAYER":
-      return {
+      newState = {
         ...state,
         players: state.players.filter((p) => p.id !== action.playerId),
         selectedPlayers: state.selectedPlayers.filter((id) => id !== action.playerId),
       }
+      savePlayersToStorage(newState.players)
+      return newState
     case "UPDATE_PLAYER":
-      return {
+      newState = {
         ...state,
         players: state.players.map((p) => (p.id === action.player.id ? action.player : p)),
+      }
+      savePlayersToStorage(newState.players)
+      return newState
+    case "LOAD_PLAYERS":
+      return {
+        ...state,
+        players: action.players,
       }
     case "ADD_WORD_ENTRY":
       return {
@@ -133,16 +169,23 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
       const randomWord = availableWords[Math.floor(Math.random() * availableWords.length)]
       
-      // Bestimme die Anzahl der Imposter (max. Anzahl der ausgewählten Spieler)
-      const actualImposterCount = Math.min(state.imposterCount, selectedPlayerObjects.length)
+      // Shuffle players using Fisher-Yates algorithm for random order each round
+      const shuffledPlayers = [...selectedPlayerObjects]
+      for (let i = shuffledPlayers.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[shuffledPlayers[i], shuffledPlayers[j]] = [shuffledPlayers[j], shuffledPlayers[i]]
+      }
       
-      // Wähle zufällige Imposter aus
+      // Bestimme die Anzahl der Imposter (max. Anzahl der ausgewählten Spieler)
+      const actualImposterCount = Math.min(state.imposterCount, shuffledPlayers.length)
+      
+      // Wähle zufällige Imposter aus den gemischten Spielern aus
       const imposterIndices = new Set<number>()
       while (imposterIndices.size < actualImposterCount) {
-        imposterIndices.add(Math.floor(Math.random() * selectedPlayerObjects.length))
+        imposterIndices.add(Math.floor(Math.random() * shuffledPlayers.length))
       }
 
-      const playersWithRoles = selectedPlayerObjects.map((player, index) => ({
+      const playersWithRoles = shuffledPlayers.map((player, index) => ({
         ...player,
         role: imposterIndices.has(index) ? ("imposter" as const) : ("citizen" as const),
       }))
@@ -220,6 +263,14 @@ const GameContext = createContext<{
 
 export function GameProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(gameReducer, initialState)
+
+  // Lade Spieler aus localStorage beim ersten Rendern
+  useEffect(() => {
+    const savedPlayers = loadPlayersFromStorage()
+    if (savedPlayers.length > 0) {
+      dispatch({ type: "LOAD_PLAYERS", players: savedPlayers })
+    }
+  }, [])
 
   return <GameContext.Provider value={{ state, dispatch }}>{children}</GameContext.Provider>
 }
