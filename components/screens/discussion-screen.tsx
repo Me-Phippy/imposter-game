@@ -22,7 +22,7 @@ export function DiscussionScreen({ onNavigate }: DiscussionScreenProps) {
   }
 
   return (
-    <div className="min-h-screen p-4 bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+    <div className="min-h-screen p-4 bg-gradient-to-br from-purple-100 to-blue-200 dark:bg-gradient-to-br dark:from-gray-900 dark:to-gray-800">
       <div className="max-w-sm mx-auto space-y-6">
         <Card className="border-yellow-500 border-2">
           <CardHeader className="text-center pb-6">

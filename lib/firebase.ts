@@ -23,9 +23,54 @@ export const database = getDatabase(app)
 // Export types for consistency
 export interface FirebaseWord {
   id: string
+  text: string
+  category: string
+  hint: string
+  dateAdded: string
+  addedBy?: string
+}
+
+// Game-specific data interfaces
+export interface BombGameWord {
+  id: string
   word: string
   category: string
-  imposterTip: string
+  difficulty: 'easy' | 'medium' | 'hard'
+  timeLimit: number
+  dateAdded: string
+  addedBy?: string
+}
+
+export interface WordAssassinationWord {
+  id: string
+  word: string
+  category: string
+  clues: string[]
+  forbiddenWords: string[]
+  points: number
+  dateAdded: string
+  addedBy?: string
+}
+
+export interface HeadsUpCard {
+  id: string
+  word: string
+  category: string
+  hints: string[]
+  difficulty: 'easy' | 'medium' | 'hard'
+  dateAdded: string
+  addedBy?: string
+}
+
+export interface BetBuddyChallenge {
+  id: string
+  title: string
+  description: string
+  category: string
+  betType: 'time' | 'accuracy' | 'creativity' | 'knowledge'
+  minPlayers: number
+  maxPlayers: number
+  estimatedTime: number
   dateAdded: string
   addedBy?: string
 }

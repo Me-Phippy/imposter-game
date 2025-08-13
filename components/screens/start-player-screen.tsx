@@ -20,7 +20,7 @@ export function StartPlayerScreen({ onNavigate }: StartPlayerScreenProps) {
   const startPlayer = state.currentSession.players[state.currentSession.currentPlayerIndex]
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-purple-100 to-blue-200 dark:bg-gradient-to-br dark:from-gray-900 dark:to-gray-800">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center pb-6">
           <div className="text-8xl mb-6">

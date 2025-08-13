@@ -91,8 +91,9 @@
   }
 }
 
-/* Animated Title Styles - Only for the main title */
-.animated-imposter-title {
+/* Animated Title Styles - For all game titles */
+.animated-imposter-title,
+.animated-game-title {
   font-family: 'Bungee', cursive;
   font-weight: 900;
   font-stretch: ultra-expanded;
@@ -116,7 +117,8 @@
   width: 100%;
 }
 
-.animated-imposter-title:before {
+.animated-imposter-title:before,
+.animated-game-title:before {
   content: "";
   width: 80%;
   position: absolute;
@@ -128,7 +130,8 @@
   animation: lineSlide 3.75s infinite;
 }
 
-.animated-imposter-title span {
+.animated-imposter-title span,
+.animated-game-title span {
   display: block;
   position: absolute;
   height: 50%;
@@ -139,7 +142,9 @@
 }
 
 .animated-imposter-title span:first-child:before, 
-.animated-imposter-title span:last-child:before {
+.animated-imposter-title span:last-child:before,
+.animated-game-title span:first-child:before, 
+.animated-game-title span:last-child:before {
   content: attr(data-text);
   color: hsl(var(--primary));
   display: block;
@@ -157,20 +162,24 @@
   left: 0;
 }
 
-.animated-imposter-title span:first-child {
+.animated-imposter-title span:first-child,
+.animated-game-title span:first-child {
   top: 0;
 }
 
-.animated-imposter-title span:last-child {
+.animated-imposter-title span:last-child,
+.animated-game-title span:last-child {
   bottom: 0;
 }
 
-.animated-imposter-title span:first-child:before {
+.animated-imposter-title span:first-child:before,
+.animated-game-title span:first-child:before {
   transform: translateY(3rem);
   animation: topSpanReveal 3.75s infinite;
 }
 
-.animated-imposter-title span:last-child:before {
+.animated-imposter-title span:last-child:before,
+.animated-game-title span:last-child:before {
   transform: translateY(-3rem);
   animation: bottomSpanReveal 3.75s infinite;
 }
@@ -221,7 +230,8 @@
 
 /* Responsive scaling for animated title */
 @media (max-width: 768px) {
-  .animated-imposter-title {
+  .animated-imposter-title,
+  .animated-game-title {
     font-size: 3rem;
     height: 4rem;
     padding: 0;
@@ -229,7 +239,9 @@
   }
   
   .animated-imposter-title span:first-child:before, 
-  .animated-imposter-title span:last-child:before {
+  .animated-imposter-title span:last-child:before,
+  .animated-game-title span:first-child:before, 
+  .animated-game-title span:last-child:before {
     font-size: 3rem;
     letter-spacing: 0.05em;
     line-height: 1.2;
@@ -238,11 +250,13 @@
     left: 0;
   }
   
-  .animated-imposter-title span:first-child:before {
+  .animated-imposter-title span:first-child:before,
+  .animated-game-title span:first-child:before {
     transform: translateY(2rem);
   }
 
-  .animated-imposter-title span:last-child:before {
+  .animated-imposter-title span:last-child:before,
+  .animated-game-title span:last-child:before {
     transform: translateY(-2rem);
   }
   
@@ -272,7 +286,8 @@
 }
 
 @media (max-width: 480px) {
-  .animated-imposter-title {
+  .animated-imposter-title,
+  .animated-game-title {
     font-size: 2.5rem;
     height: 3.5rem;
     padding: 0;
@@ -280,7 +295,9 @@
   }
   
   .animated-imposter-title span:first-child:before, 
-  .animated-imposter-title span:last-child:before {
+  .animated-imposter-title span:last-child:before,
+  .animated-game-title span:first-child:before, 
+  .animated-game-title span:last-child:before {
     font-size: 2.5rem;
     letter-spacing: 0.02em;
     line-height: 1.2;
@@ -289,11 +306,13 @@
     left: 0;
   }
   
-  .animated-imposter-title span:first-child:before {
+  .animated-imposter-title span:first-child:before,
+  .animated-game-title span:first-child:before {
     transform: translateY(1.75rem);
   }
 
-  .animated-imposter-title span:last-child:before {
+  .animated-imposter-title span:last-child:before,
+  .animated-game-title span:last-child:before {
     transform: translateY(-1.75rem);
   }
   

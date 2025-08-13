@@ -27,9 +27,9 @@ export class WordDatabaseService {
         Object.entries(data).forEach(([firebaseId, wordData]: [string, any]) => {
           words.push({
             id: wordData.id || firebaseId,
-            text: wordData.text,
+            text: wordData.text || wordData.word, // Handle both text and word properties
             category: wordData.category,
-            hint: wordData.hint,
+            hint: wordData.hint || wordData.imposterTip, // Handle both hint and imposterTip
             dateAdded: wordData.dateAdded
           })
         })
@@ -134,9 +134,9 @@ export class WordDatabaseService {
           Object.entries(data).forEach(([firebaseId, wordData]: [string, any]) => {
             words.push({
               id: wordData.id || firebaseId,
-              text: wordData.text,
+              text: wordData.text || wordData.word, // Handle both text and word properties
               category: wordData.category,
-              hint: wordData.hint,
+              hint: wordData.hint || wordData.imposterTip, // Handle both hint and imposterTip
               dateAdded: wordData.dateAdded
             })
           })

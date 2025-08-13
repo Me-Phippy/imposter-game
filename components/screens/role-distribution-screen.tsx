@@ -171,7 +171,7 @@ export function RoleDistributionScreen({ onNavigate }: RoleDistributionScreenPro
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 touch-none select-none overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-purple-100 to-blue-200 dark:bg-gradient-to-br dark:from-gray-900 dark:to-gray-800 touch-none select-none overflow-hidden">
       {/* Drag Hint */}
       <div className="absolute top-5 left-1/2 transform -translate-x-1/2 text-white text-center font-medium opacity-90 bg-black/20 px-5 py-2 rounded-full backdrop-blur-sm">
         Ziehe die Karte um das Wort aufzudecken!

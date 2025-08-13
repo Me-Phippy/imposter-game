@@ -35,7 +35,7 @@ const getPlayerGroups = (isUnlocked: boolean): Record<string, PlayerGroup> => {
     },
     "Fam": {
       name: "Familie", 
-      players: ["Mama", "Papa", "Oma", "Opa", "Schwester", "Bruder"]
+      players: ["Mama", "Papa", "Oma", "Opa", "Schwester", "Bruder", "Kind3"]
     }
   }
 }
