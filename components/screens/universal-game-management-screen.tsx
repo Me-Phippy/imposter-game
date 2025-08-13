@@ -88,7 +88,7 @@ export function UniversalGameManagementScreen({ gameType, onNavigate }: Universa
   
   // Extract data with fallback for different hook structures
   const words = gameData.words || gameData.cards || gameData.challenges || []
-  const { isLoading, isConnected, addWord, addCard, addChallenge, removeWord, removeCard, removeChallenge, importWords } = gameData
+  const { isLoading, isConnected, addWord, addCard, addChallenge, removeWord, removeCard, removeChallenge, deleteWord, importWords } = gameData
   
   // Form States
   const [newWord, setNewWord] = useState("")
@@ -182,7 +182,22 @@ export function UniversalGameManagementScreen({ gameType, onNavigate }: Universa
   const handleDeleteWord = async (wordId: string, wordText: string) => {
     if (!confirm(`Möchtest du "${wordText}" wirklich aus der ${config.databaseName} löschen?`)) return
 
-    const deleteFunction = removeWord || removeCard || removeChallenge
+    // Get the correct delete function based on the available functions from the hook
+    let deleteFunction
+    if (gameData.deleteWord) {
+      deleteFunction = gameData.deleteWord  // Firebase words hook
+    } else if (gameData.removeWord) {
+      deleteFunction = gameData.removeWord  // Bomb Game, Word Assassination
+    } else if (gameData.removeCard) {
+      deleteFunction = gameData.removeCard  // Heads Up
+    } else if (gameData.removeChallenge) {
+      deleteFunction = gameData.removeChallenge  // Bet Buddy
+    } else {
+      console.error('No delete function available')
+      showSyncMessage(`❌ Keine Löschfunktion verfügbar`)
+      return
+    }
+    
     const success = await deleteFunction(wordId)
     
     if (success) {
