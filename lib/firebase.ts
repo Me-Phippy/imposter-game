@@ -23,9 +23,9 @@ export const database = getDatabase(app)
 // Export types for consistency
 export interface FirebaseWord {
   id: string
-  text: string
+  word: string
   category: string
-  hint: string
+  imposterTip: string
   dateAdded: string
   addedBy?: string
 }

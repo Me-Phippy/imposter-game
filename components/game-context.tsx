@@ -56,7 +56,7 @@ type GameAction =
   | { type: "SET_WORD_ENTRIES"; wordEntries: WordEntry[] }
 
 const defaultWordEntries: WordEntry[] = [
-  // Keine Standard-Wörter mehr - alles kommt aus Firebase
+  // Keine Standard-Wörter - alles kommt aus Firebase
 ]
 
 // Funktion zum Laden der Spieler aus localStorage
@@ -275,12 +275,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // ✅ Synchronisiere Firebase-Wörter automatisch mit Game State
   useEffect(() => {
     if (firebaseWords.length > 0) {
-      const wordEntries: WordEntry[] = firebaseWords.map(word => ({
-        word: word.text,
+      const firebaseWordEntries: WordEntry[] = firebaseWords.map(word => ({
+        word: word.word,
         category: word.category,
-        imposterTip: word.hint
+        imposterTip: word.imposterTip
       }))
-      dispatch({ type: "SET_WORD_ENTRIES", wordEntries })
+      
+      dispatch({ type: "SET_WORD_ENTRIES", wordEntries: firebaseWordEntries })
+    } else {
+      // Firebase ist leer oder nicht verbunden - keine Wörter verfügbar
+      dispatch({ type: "SET_WORD_ENTRIES", wordEntries: [] })
     }
   }, [firebaseWords]) // ← Läuft automatisch wenn Firebase-Wörter geladen werden
 

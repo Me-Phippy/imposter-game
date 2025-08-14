@@ -40,13 +40,17 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
 
   // Duplicate Detection
   const duplicates = useMemo(() => {
-    if (!canEdit) return []
-    
     const wordMap = new Map<string, FirebaseWord[]>()
+    
+    console.log('🔍 Checking for duplicates in', words.length, 'words')
+    console.log('📋 Words structure:', words.slice(0, 2)) // Show first 2 words to see structure
     
     // Gruppiere Wörter nach lowercase word
     words.forEach(word => {
-      const key = word.word.toLowerCase().trim()
+      console.log('🔸 Word object:', word)
+      const wordText = word.word || (word as any).text || 'NO_WORD_FOUND'
+      const key = wordText.toLowerCase().trim()
+      console.log(`🔸 Processing: "${wordText}" -> key: "${key}"`)
       if (!wordMap.has(key)) {
         wordMap.set(key, [])
       }
@@ -55,18 +59,18 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
     
     // Finde alle Duplikate (Gruppen mit mehr als einem Wort)
     const duplicateWords: FirebaseWord[] = []
-    wordMap.forEach(group => {
+    wordMap.forEach((group, key) => {
       if (group.length > 1) {
+        console.log(`🔥 Found duplicate group for "${key}":`, group.length, 'words')
         duplicateWords.push(...group)
       }
     })
     
+    console.log('📊 Total duplicates found:', duplicateWords.length)
     return duplicateWords
-  }, [words, canEdit])
+  }, [words])
 
   const duplicateGroups = useMemo(() => {
-    if (!canEdit) return []
-    
     const wordMap = new Map<string, FirebaseWord[]>()
     
     // Gruppiere Wörter nach lowercase word
@@ -87,7 +91,7 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
     })
     
     return groups
-  }, [words, canEdit])
+  }, [words])
 
   // Synchronize Firebase words with Game Context
   useEffect(() => {
@@ -98,6 +102,17 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
     }))
     dispatch({ type: "SET_WORD_ENTRIES", wordEntries })
   }, [words, dispatch])
+
+  // Check for duplicates whenever words change
+  useEffect(() => {
+    if (words.length > 0 && duplicates.length > 0) {
+      setShowDuplicates(true)
+      setLastSyncMessage(`⚠️ ${duplicates.length} Duplikate in der Datenbank gefunden!`)
+      setTimeout(() => setLastSyncMessage(""), 3000)
+    } else if (duplicates.length === 0 && showDuplicates) {
+      setShowDuplicates(false)
+    }
+  }, [duplicates, words, showDuplicates])
 
   // Helper Functions
   const showSyncMessage = useCallback((message: string) => {
@@ -400,22 +415,24 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
         )}
 
         {/* Duplicate Detection */}
-        {canEdit && duplicateGroups.length > 0 && (
+        {duplicateGroups.length > 0 && (
           <Card className="border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-orange-800 dark:text-orange-200">
                 <AlertTriangle className="h-5 w-5" />
                 Duplikate gefunden ({duplicates.length} Wörter)
                 <div className="ml-auto flex gap-2">
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleDeleteAllDuplicates}
-                    className="bg-red-600 hover:bg-red-700 text-white"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Alle älteren löschen
-                  </Button>
+                  {canEdit && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleDeleteAllDuplicates}
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Alle älteren löschen
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"
@@ -429,28 +446,43 @@ export function WordManagementScreen({ onNavigate }: WordManagementScreenProps) 
             </CardHeader>
             {showDuplicates && (
               <CardContent>
-                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/50 rounded-lg border border-blue-200 dark:border-blue-700">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertTriangle className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                      Auto-Bereinigung verfügbar
-                    </span>
-                  </div>
-                  <p className="text-xs text-blue-700 dark:text-blue-300 mb-3">
-                    Der "Alle älteren löschen" Button behält automatisch die <strong>neueste Version</strong> jedes Duplikats 
-                    und löscht alle älteren Versionen basierend auf dem Hinzufügungsdatum.
-                  </p>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="bg-green-100 dark:bg-green-950/50 p-2 rounded">
-                      <strong className="text-green-800 dark:text-green-200">Behalten:</strong>
-                      <br />✓ {duplicateGroups.length} neueste Wörter
+                {!canEdit && (
+                  <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-950/50 rounded-lg border border-yellow-200 dark:border-yellow-700">
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                      <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                        Admin-Modus erforderlich
+                      </span>
                     </div>
-                    <div className="bg-red-100 dark:bg-red-950/50 p-2 rounded">
-                      <strong className="text-red-800 dark:text-red-200">Löschen:</strong>
-                      <br />✗ {duplicates.length - duplicateGroups.length} ältere Versionen
+                    <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                      Um Duplikate zu löschen, musst du zuerst den Admin-Modus mit dem Passwort aktivieren.
+                    </p>
+                  </div>
+                )}
+                {canEdit && (
+                  <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/50 rounded-lg border border-blue-200 dark:border-blue-700">
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertTriangle className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                        Auto-Bereinigung verfügbar
+                      </span>
+                    </div>
+                    <p className="text-xs text-blue-700 dark:text-blue-300 mb-3">
+                      Der "Alle älteren löschen" Button behält automatisch die <strong>neueste Version</strong> jedes Duplikats 
+                      und löscht alle älteren Versionen basierend auf dem Hinzufügungsdatum.
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="bg-green-100 dark:bg-green-950/50 p-2 rounded">
+                        <strong className="text-green-800 dark:text-green-200">Behalten:</strong>
+                        <br />✓ {duplicateGroups.length} neueste Wörter
+                      </div>
+                      <div className="bg-red-100 dark:bg-red-950/50 p-2 rounded">
+                        <strong className="text-red-800 dark:text-red-200">Löschen:</strong>
+                        <br />✗ {duplicates.length - duplicateGroups.length} ältere Versionen
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
                 <div className="space-y-4">
                   {duplicateGroups.map((group, groupIndex) => {
                     // Sortiere Gruppe nach Datum (neueste zuerst) für Anzeige

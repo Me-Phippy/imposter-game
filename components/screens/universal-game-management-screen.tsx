@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, Plus, Trash2, Edit, Search, Database, Lock, Wifi, WifiOff, Download, Upload, AlertTriangle } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, Edit, Search, Database, Lock, Wifi, WifiOff, Download, Upload, AlertTriangle, X } from "lucide-react"
 import { PasswordInput } from "@/components/ui/password-input"
 import { ThemeToggle } from "@/components/theme-toggle"
 import type { Screen } from "@/app/page"
@@ -113,6 +113,55 @@ export function UniversalGameManagementScreen({ gameType, onNavigate }: Universa
       if (word.category) cats.add(word.category)
     })
     return Array.from(cats).sort()
+  }, [words])
+
+  // Duplicate Detection
+  const duplicates = useMemo(() => {
+    const wordMap = new Map<string, any[]>()
+    
+    // Gruppiere Wörter nach lowercase word
+    words.forEach((word: any) => {
+      const wordText = word.word || word.text || word.title || ''
+      const key = wordText.toLowerCase().trim()
+      if (!wordMap.has(key)) {
+        wordMap.set(key, [])
+      }
+      wordMap.get(key)!.push(word)
+    })
+    
+    // Finde alle Duplikate (Gruppen mit mehr als einem Wort)
+    const duplicateWords: any[] = []
+    wordMap.forEach((group, key) => {
+      if (group.length > 1) {
+        duplicateWords.push(...group)
+      }
+    })
+    
+    return duplicateWords
+  }, [words])
+
+  const duplicateGroups = useMemo(() => {
+    const wordMap = new Map<string, any[]>()
+    
+    // Gruppiere Wörter nach lowercase word
+    words.forEach((word: any) => {
+      const wordText = word.word || word.text || word.title || ''
+      const key = wordText.toLowerCase().trim()
+      if (!wordMap.has(key)) {
+        wordMap.set(key, [])
+      }
+      wordMap.get(key)!.push(word)
+    })
+    
+    // Finde alle Duplikate-Gruppen
+    const groups: any[][] = []
+    wordMap.forEach(group => {
+      if (group.length > 1) {
+        groups.push(group)
+      }
+    })
+    
+    return groups
   }, [words])
 
   const showSyncMessage = (message: string) => {
@@ -495,6 +544,104 @@ export function UniversalGameManagementScreen({ gameType, onNavigate }: Universa
             />
           </CardContent>
         </Card>
+
+        {/* Duplicate Detection */}
+        {duplicates.length > 0 && (
+          <Card className="border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/50">
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-lg sm:text-xl text-orange-700 dark:text-orange-300">
+                <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5" />
+                Duplikate gefunden ({duplicates.length} Wörter)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 space-y-4">
+              <p className="text-orange-700 dark:text-orange-300 text-sm">
+                Die folgenden Wörter sind mehrfach vorhanden und können gelöscht werden:
+              </p>
+              
+              <div className="space-y-3">
+                {duplicateGroups.map((group, groupIndex) => {
+                  const wordText = group[0].word || group[0].text || group[0].title || ''
+                  return (
+                    <div key={groupIndex} className="border border-orange-200 dark:border-orange-800 rounded-lg p-3 bg-white dark:bg-gray-800">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium text-orange-700 dark:text-orange-300">
+                          "{wordText}" ({group.length}x)
+                        </h4>
+                        {canEdit && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              // Lösche alle bis auf das erste Wort der Gruppe
+                              group.slice(1).forEach(async (word) => {
+                                if (deleteWord) {
+                                  await deleteWord(word.id)
+                                } else if (removeWord) {
+                                  await removeWord(word.id)
+                                } else if (removeCard) {
+                                  await removeCard(word.id)
+                                } else if (removeChallenge) {
+                                  await removeChallenge(word.id)
+                                }
+                              })
+                              showSyncMessage(`✅ Duplikate von "${wordText}" entfernt`)
+                            }}
+                            className="text-orange-700 border-orange-300 hover:bg-orange-100 dark:text-orange-300 dark:border-orange-700 dark:hover:bg-orange-900/50"
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            Duplikate löschen
+                          </Button>
+                        )}
+                      </div>
+                      
+                      <div className="space-y-1">
+                        {group.map((word, wordIndex) => (
+                          <div key={word.id} className="flex items-center justify-between text-sm p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                            <div className="flex-1">
+                              <span className="font-mono text-xs text-gray-500 dark:text-gray-400">#{word.id}</span>
+                              <span className="ml-2">{word.category && `[${word.category}]`}</span>
+                              {word.imposterTip && (
+                                <span className="ml-2 text-blue-600 dark:text-blue-400">Tipp: {word.imposterTip}</span>
+                              )}
+                            </div>
+                            {wordIndex > 0 && canEdit && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={async () => {
+                                  if (deleteWord) {
+                                    await deleteWord(word.id)
+                                  } else if (removeWord) {
+                                    await removeWord(word.id)
+                                  } else if (removeCard) {
+                                    await removeCard(word.id)
+                                  } else if (removeChallenge) {
+                                    await removeChallenge(word.id)
+                                  }
+                                  showSyncMessage(`✅ Duplikat "${wordText}" entfernt`)
+                                }}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/50"
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {!canEdit && (
+                <p className="text-orange-600 dark:text-orange-400 text-sm italic">
+                  Admin-Modus erforderlich zum Löschen von Duplikaten.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Words List */}
         <Card>
