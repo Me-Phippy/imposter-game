@@ -9,13 +9,16 @@ import { StartPlayerScreen } from "@/components/screens/start-player-screen"
 import { AssociationScreen } from "@/components/screens/association-screen"
 import { DiscussionScreen } from "@/components/screens/discussion-screen"
 import { ResultScreen } from "@/components/screens/result-screen"
-import { BombGameCard } from "@/components/screens/bomb-game-card"
+import { BombGameSetupScreen } from "@/components/screens/bomb-game-setup-screen"
+import { BombGamePlayScreen } from "@/components/screens/bomb-game-play-screen"
+import { BombGameResultScreen } from "@/components/screens/bomb-game-result-screen"
 import { WordAssassinationCard } from "@/components/screens/word-assassination-card"
 import { HeadsUpCard } from "@/components/screens/heads-up-card"
 import { BetBuddyCard } from "@/components/screens/bet-buddy-card"
 import { DatabaseManagementScreen } from "@/components/screens/database-management-screen"
 import { UniversalGameManagementScreen } from "@/components/screens/universal-game-management-screen"
 import { GameProvider } from "@/components/game-context"
+import { BombGameProvider } from "@/components/bomb-game-context"
 
 export type Screen =
   | "start-menu"
@@ -32,7 +35,9 @@ export type Screen =
   | "association"
   | "discussion"
   | "result"
-  | "bomb-game"
+  | "bomb-game-setup"
+  | "bomb-game-play"
+  | "bomb-game-result"
   | "word-assassination"
   | "heads-up"
   | "bet-buddy"
@@ -70,11 +75,23 @@ export default function Home() {
         return <DiscussionScreen onNavigate={setCurrentScreen} />
       case "result":
         return <ResultScreen onNavigate={setCurrentScreen} />
-      case "bomb-game":
+      case "bomb-game-setup":
         return (
-          <div className="min-h-screen flex items-center justify-center p-6">
-            <BombGameCard onNavigate={setCurrentScreen} />
-          </div>
+          <BombGameProvider>
+            <BombGameSetupScreen onNavigate={setCurrentScreen} />
+          </BombGameProvider>
+        )
+      case "bomb-game-play":
+        return (
+          <BombGameProvider>
+            <BombGamePlayScreen onNavigate={setCurrentScreen} />
+          </BombGameProvider>
+        )
+      case "bomb-game-result":
+        return (
+          <BombGameProvider>
+            <BombGameResultScreen onNavigate={setCurrentScreen} />
+          </BombGameProvider>
         )
       case "word-assassination":
         return (

@@ -30,8 +30,8 @@ const games = [
     title: "BOMB GAME",
     subtitle: "Das explosive Wortspiel",
     emoji: "💣",
-    targetScreen: "bomb-game" as Screen,
-    isAvailable: false
+    targetScreen: "bomb-game-setup" as Screen,
+    isAvailable: true
   },
   {
     title: "WORD ASSASSINATION", 

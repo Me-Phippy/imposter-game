@@ -8,6 +8,10 @@
   .text-balance {
     text-wrap: balance;
   }
+  
+  .bg-gradient-radial {
+    background: radial-gradient(circle, var(--tw-gradient-stops));
+  }
 }
 
 @layer base {

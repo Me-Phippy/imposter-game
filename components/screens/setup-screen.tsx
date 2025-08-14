@@ -80,7 +80,39 @@ export function SetupScreen({ onNavigate }: SetupScreenProps) {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl">Spieler auswählen</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl">Spieler auswählen</CardTitle>
+              {state.players.length > 0 && (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      dispatch({
+                        type: "SET_SELECTED_PLAYERS",
+                        playerIds: state.players.map(p => p.id),
+                      })
+                    }}
+                    disabled={state.selectedPlayers.length === state.players.length}
+                  >
+                    Alle
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      dispatch({
+                        type: "SET_SELECTED_PLAYERS",
+                        playerIds: [],
+                      })
+                    }}
+                    disabled={state.selectedPlayers.length === 0}
+                  >
+                    Keine
+                  </Button>
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {state.players.length === 0 ? (

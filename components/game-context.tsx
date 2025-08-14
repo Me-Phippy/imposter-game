@@ -170,23 +170,19 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
       const randomWord = availableWords[Math.floor(Math.random() * availableWords.length)]
       
-      // Shuffle players using Fisher-Yates algorithm for random order each round
-      const shuffledPlayers = [...selectedPlayerObjects]
-      for (let i = shuffledPlayers.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1))
-        ;[shuffledPlayers[i], shuffledPlayers[j]] = [shuffledPlayers[j], shuffledPlayers[i]]
-      }
+      // Keep players in their original order (no shuffling)
+      const playersInOrder = [...selectedPlayerObjects]
       
       // Bestimme die Anzahl der Imposter (max. Anzahl der ausgewählten Spieler)
-      const actualImposterCount = Math.min(state.imposterCount, shuffledPlayers.length)
+      const actualImposterCount = Math.min(state.imposterCount, playersInOrder.length)
       
-      // Wähle zufällige Imposter aus den gemischten Spielern aus
+      // Wähle zufällige Imposter aus den Spielern aus
       const imposterIndices = new Set<number>()
       while (imposterIndices.size < actualImposterCount) {
-        imposterIndices.add(Math.floor(Math.random() * shuffledPlayers.length))
+        imposterIndices.add(Math.floor(Math.random() * playersInOrder.length))
       }
 
-      const playersWithRoles = shuffledPlayers.map((player, index) => ({
+      const playersWithRoles = playersInOrder.map((player, index) => ({
         ...player,
         role: imposterIndices.has(index) ? ("imposter" as const) : ("citizen" as const),
       }))
@@ -280,9 +276,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (firebaseWords.length > 0) {
       const wordEntries: WordEntry[] = firebaseWords.map(word => ({
-        word: word.word,
+        word: word.text,
         category: word.category,
-        imposterTip: word.imposterTip
+        imposterTip: word.hint
       }))
       dispatch({ type: "SET_WORD_ENTRIES", wordEntries })
     }
