@@ -37,8 +37,8 @@ const games = [
     title: "WORD ASSASSINATION", 
     subtitle: "Das tödliche Wortduell",
     emoji: "🎯",
-    targetScreen: "word-assassination" as Screen,
-    isAvailable: false
+    targetScreen: "word-assassination-setup" as Screen,
+    isAvailable: true
   },
   {
     title: "HEADS UP",

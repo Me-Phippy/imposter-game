@@ -13,12 +13,17 @@ import { BombGameSetupScreen } from "@/components/screens/bomb-game-setup-screen
 import { BombGamePlayScreen } from "@/components/screens/bomb-game-play-screen"
 import { BombGameResultScreen } from "@/components/screens/bomb-game-result-screen"
 import { WordAssassinationCard } from "@/components/screens/word-assassination-card"
+import { WordAssassinationSetupScreen } from "@/components/screens/word-assassination-setup-screen"
+import { WordAssassinationAssignmentScreen } from "@/components/screens/word-assassination-assignment-screen"
+import { WordAssassinationRevealScreen } from "@/components/screens/word-assassination-reveal-screen"
+import { WordAssassinationPlayScreen } from "@/components/screens/word-assassination-play-screen"
 import { HeadsUpCard } from "@/components/screens/heads-up-card"
 import { BetBuddyCard } from "@/components/screens/bet-buddy-card"
 import { DatabaseManagementScreen } from "@/components/screens/database-management-screen"
 import { UniversalGameManagementScreen } from "@/components/screens/universal-game-management-screen"
 import { GameProvider } from "@/components/game-context"
 import { BombGameProvider } from "@/components/bomb-game-context"
+import { WordAssassinationProvider } from "@/components/word-assassination-context"
 
 export type Screen =
   | "start-menu"
@@ -39,6 +44,10 @@ export type Screen =
   | "bomb-game-play"
   | "bomb-game-result"
   | "word-assassination"
+  | "word-assassination-setup"
+  | "word-assassination-assignment"
+  | "word-assassination-reveal"
+  | "word-assassination-play"
   | "heads-up"
   | "bet-buddy"
 
@@ -46,6 +55,17 @@ export default function Home() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("start-menu")
 
   const renderScreen = () => {
+    // Wrap all Word Assassination screens with the provider
+    const isWordAssassinationScreen = currentScreen.startsWith('word-assassination-')
+    
+    if (isWordAssassinationScreen) {
+      return (
+        <WordAssassinationProvider>
+          {renderWordAssassinationScreen()}
+        </WordAssassinationProvider>
+      )
+    }
+
     switch (currentScreen) {
       case "start-menu":
         return <StartMenuScreen onNavigate={setCurrentScreen} />
@@ -113,6 +133,21 @@ export default function Home() {
         )
       default:
         return <StartMenuScreen onNavigate={setCurrentScreen} />
+    }
+  }
+
+  const renderWordAssassinationScreen = () => {
+    switch (currentScreen) {
+      case "word-assassination-setup":
+        return <WordAssassinationSetupScreen onNavigate={setCurrentScreen} />
+      case "word-assassination-assignment":
+        return <WordAssassinationAssignmentScreen onNavigate={setCurrentScreen} />
+      case "word-assassination-reveal":
+        return <WordAssassinationRevealScreen onNavigate={setCurrentScreen} />
+      case "word-assassination-play":
+        return <WordAssassinationPlayScreen onNavigate={setCurrentScreen} />
+      default:
+        return <WordAssassinationSetupScreen onNavigate={setCurrentScreen} />
     }
   }
 

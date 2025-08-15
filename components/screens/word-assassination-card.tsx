@@ -20,17 +20,21 @@ export function WordAssassinationCard({ onNavigate }: WordAssassinationCardProps
         <p className="text-muted-foreground text-lg">Das tödliche Wortduell</p>
       </CardHeader>
       <CardContent className="space-y-6">
-        <Button className="w-full h-16 text-xl font-semibold" size="lg" disabled>
-          🎯 Bald verfügbar
+        <Button 
+          className="w-full h-16 text-xl font-semibold bg-red-600 hover:bg-red-700 text-white" 
+          size="lg"
+          onClick={() => onNavigate("word-assassination-setup")}
+        >
+          🎯 Spiel starten
         </Button>
 
         <div className="grid grid-cols-1 gap-4">
           <Button
             variant="outline"
+            onClick={() => onNavigate("word-assassination-management")}
             className="h-14 flex items-center justify-center gap-3 text-lg"
-            disabled
           >
-            <span>Regeln ansehen</span>
+            <span>Wörter verwalten</span>
           </Button>
 
           <Button

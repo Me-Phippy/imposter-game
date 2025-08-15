@@ -45,9 +45,6 @@ export interface WordAssassinationWord {
   id: string
   word: string
   category: string
-  clues: string[]
-  forbiddenWords: string[]
-  points: number
   dateAdded: string
   addedBy?: string
 }
